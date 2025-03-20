@@ -1,13 +1,10 @@
 pipeline {
-    agent {
-        label 'JenkinsSlave'
-    }
+    agent any
     environment {
         dockerImage = "pradipchaudhary7/jenkinspipelinesetup"
     }
     stages {
         stage('Build Java App') {
-            agent { label 'JenkinsSlave' }
             steps {
                 sh 'mvn -f pom.xml clean package'
             }
@@ -20,7 +17,6 @@ pipeline {
         }
 
         stage('Create Docker Image') {
-            agent { label 'JenkinsSlave' }
             steps {
                 copyArtifacts filter: '**/*.war', fingerprintArtifacts: true, projectName: env.JOB_NAME, selector: specific(env.BUILD_NUMBER)
                 echo "Creating Docker image..."
@@ -45,7 +41,7 @@ pipeline {
         }
 
         stage('Deploy to Development Env') {
-            agent { label 'JenkinsSlave' }
+            
             steps {
                 echo "Deploying app to development environment..."
                 sh '''
@@ -57,7 +53,7 @@ pipeline {
         }
 
         stage('Deploy to Production Env') {
-            agent { label 'JenkinsSlave' }
+            
             steps {
                 timeout(time: 1, unit: 'DAYS') {
                     input message: 'Approve PRODUCTION Deployment?'

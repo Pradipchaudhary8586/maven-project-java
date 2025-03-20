@@ -18,34 +18,29 @@ pipeline {
 
         stage('Create Docker Image') {
             steps {
-                copyArtifacts projectName: env.JOB_NAME, filter: '**/*.war', fingerprint: true, selector: lastSuccessful()
+                copyArtifacts filter: '**/*.war', fingerprintArtifacts: true, projectName: env.JOB_NAME, selector: specific(env.BUILD_NUMBER)
                 echo "Creating Docker image..."
-                sh '''
-                docker build -t $dockerImage:$BUILD_NUMBER .
-                docker tag $dockerImage:$BUILD_NUMBER $dockerImage:latest
-                '''
+                sh 'docker build -t $dockerImage:$BUILD_NUMBER .'
             }
         }
 
         stage('Trivy Scan for Docker Image') {
             steps {
                 echo "Scanning Docker image..."
-                sh 'trivy image --exit-code 0 $dockerImage:$BUILD_NUMBER || true'
+                sh 'trivy image $dockerImage:$BUILD_NUMBER || true'
             }
         }
 
         stage('Push Image to DockerHub') {
             steps {
-                withDockerRegistry([credentialsId: 'dockerhub-credentials', url: 'https://index.docker.io/v1/']) {
-                    sh '''
-                    docker push $dockerImage:$BUILD_NUMBER
-                    docker push $dockerImage:latest
-                    '''
+                withDockerRegistry([credentialsId: 'dockerhub-credentials', url: '']) {
+                    sh 'docker push $dockerImage:$BUILD_NUMBER'
                 }
             }
         }
 
         stage('Deploy to Development Env') {
+            
             steps {
                 echo "Deploying app to development environment..."
                 sh '''
@@ -57,6 +52,7 @@ pipeline {
         }
 
         stage('Deploy to Production Env') {
+            
             steps {
                 timeout(time: 1, unit: 'DAYS') {
                     input message: 'Approve PRODUCTION Deployment?'
@@ -70,7 +66,6 @@ pipeline {
             }
         }
     }
-
     post { 
         always { 
             mail to: 'iampradip.creation@gmail.com',
@@ -80,7 +75,7 @@ pipeline {
 
         success {
             mail bcc: '', body: """Hi Team,
-            Build #$BUILD_NUMBER is successful, please go through the URL:
+            Build #$BUILD_NUMBER is successful, please go through the url
             $BUILD_URL
             and verify the details.
             Regards,
@@ -88,12 +83,12 @@ pipeline {
         }
 
         failure {
-            mail bcc: '', body: """Hi Team,
-            Build #$BUILD_NUMBER is unsuccessful, please go through the URL:
-            $BUILD_URL
-            and verify the details.
-            Regards,
-            DevOps Team""", cc: '', from: '', replyTo: '', subject: 'BUILD FAILED NOTIFICATION', to: 'iampradip.creation@gmail.com'
+                mail bcc: '', body: """Hi Team,
+                Build #$BUILD_NUMBER is unsuccessful, please go through the url
+                $BUILD_URL
+                and verify the details.
+                Regards,
+                DevOps Team""", cc: '', from: '', replyTo: '', subject: 'BUILD FAILED NOTIFICATION', to: 'iampradip.creation@gmail.com'
         }
     }
 }
